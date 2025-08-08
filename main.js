@@ -335,6 +335,40 @@ document.addEventListener("DOMContentLoaded", () => {
     return pairs;
   }
 
+  // Detect ties in the standings (excluding the top competitor) and
+  // return a set of pairings to break the first tie encountered.
+  // This is useful in small tournaments where competitors can end
+  // with identical records for 3rd, 4th place, etc.
+  function findPlacementTiePairings() {
+    // Sort competitors the same way the table is sorted.
+    let sorted = competitors.slice().sort((a, b) => {
+      if (a.losses !== b.losses) return a.losses - b.losses;
+      return b.wins - a.wins;
+    });
+
+    // Skip the top competitor (index 0) and look for any group of
+    // competitors with identical win/loss records.
+    for (let i = 1; i < sorted.length; ) {
+      let group = [sorted[i]];
+      let j = i + 1;
+      while (
+        j < sorted.length &&
+        sorted[j].wins === group[0].wins &&
+        sorted[j].losses === group[0].losses
+      ) {
+        group.push(sorted[j]);
+        j++;
+      }
+      if (group.length > 1) {
+        // Found a tie group – pair them off using the same greedy
+        // strategy used for normal rounds.
+        return greedyPairGroup(group);
+      }
+      i = j;
+    }
+    return [];
+  }
+
   // Display pairings in three columns:
   // Left: pairing text; Center: select dropdown (which locks on selection);
   // Right: Unlock button.
@@ -538,11 +572,24 @@ document.addEventListener("DOMContentLoaded", () => {
     if (competitors.filter(c => c.losses < 2).length > 1) {
       displayPairings();
     } else {
-      alert("Competition finished!");
-      competitionStarted = false;
-      localStorage.setItem("competitionStarted", "false");
-      finalizeRoundButton.disabled = true;
-      clearPairings();
+      // Only one competitor remains under two losses. Check whether
+      // other competitors are tied for placement (e.g., 3rd/4th).
+      const tiePairings = findPlacementTiePairings();
+      if (tiePairings.length > 0) {
+        alert("Tie detected! Additional match(es) required to determine placement.");
+        currentPairings = tiePairings;
+        competitionStarted = true;
+        localStorage.setItem("competitionStarted", "true");
+        finalizeRoundButton.disabled = false;
+        savePairings();
+        displayPairings();
+      } else {
+        alert("Competition finished!");
+        competitionStarted = false;
+        localStorage.setItem("competitionStarted", "false");
+        finalizeRoundButton.disabled = true;
+        clearPairings();
+      }
     }
   }
 
