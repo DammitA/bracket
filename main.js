@@ -100,7 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       beginCompetitionButton.disabled = competitionStarted;
     }
-    finalizeRoundButton.disabled = !competitionStarted;
+    finalizeRoundButton.disabled = !competitionStarted || adminMode;
     saveCompetitors();
   }
 
@@ -682,11 +682,14 @@ document.addEventListener("DOMContentLoaded", () => {
     competitionStarted = true;
 		localStorage.setItem("competitionStarted", "true")
     beginCompetitionButton.disabled = true;
-    finalizeRoundButton.disabled = false;
+    finalizeRoundButton.disabled = adminMode;
     displayPairings();
   });
   
-  finalizeRoundButton.addEventListener("click", finalizeRound);
+  finalizeRoundButton.addEventListener("click", () => {
+    if (adminMode) return;
+    finalizeRound();
+  });
   
   calcTeamPointsButton.addEventListener("click", calcTeamPoints);
   
