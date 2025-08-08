@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Donner Competition Software</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    #controls input {
+      margin: 0 5px;
+    }
+    button {
+      margin: 5px;
+    }
+    /* Update the table styles */
+    table {
+      border-collapse: collapse;
+      width: 600px;          /* Set a fixed width */
+      margin: 10px;     /* Center the table horizontally with auto margins */
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+      padding: 5px;
+      text-align: left;
+    }
+    .pairing {
+      display: flex;
+      flex-wrap: nowrap;
+      justify-content: flex-start;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .pairing-text {
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- The rest of your HTML remains unchanged -->
+  <h1>Donner Competition Software</h1>
+  
+  <div id="controls">
+    <input type="text" id="name" placeholder="Name">
+    <input type="text" id="team" placeholder="Team">
+    <button id="addCompetitor">Add Competitor</button>
+    <button id="removeCompetitor">Remove Competitor</button>
+    <button id="sampleTeams">Sample Teams</button>
+    <button id="saveRoster">Save Match</button>
+    <button id="loadRoster">Load Match</button>
+    <input type="file" id="loadRosterInput" style="display:none" accept=".csv">
+    <button id="calcTeamPoints">Calc Team Points</button>
+    <button id="resetScores">Reset Scores</button>
+    <button id="eraseCompetitors" disabled>Reset All Data</button>
+  </div>
+  
+  <h2>Competitors</h2>
+  <table id="competitorsTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Team</th>
+        <th>Wins</th>
+        <th>Losses</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Competitor rows will be inserted here -->
+    </tbody>
+  </table>
+  
+  <div>
+    <button id="beginCompetition">Begin Competition</button>
+  </div>
+  
+  <h2>Pairings</h2>
+  <div id="results">
+    <!-- Pairings and winner selections will appear here -->
+  </div>
+  
+  <button id="finalizeRound">Finalize: Generate Next Round</button>
+
+  <!-- New div to display team points -->
+  <div id="teamPointsDisplay"></div>
+  
+  <script src="main.js"></script>
+</body>
+</html>
+

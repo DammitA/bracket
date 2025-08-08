@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Doner Competition Software</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+	  max-width: 1500px;
+    }
+    .title-section {
+	  width: 100%;
+	  max-width: 1500px;
+      aspect-ratio: 3/1;
+      background-image: url("background_crop.jpg"); /* Path to your image file */
+      background-size: contain;/*975px 300px;     /* Adjusts the image to cover the entire container */
+      background-repeat: no-repeat;
+      background-position: top left;
+	  padding: 1px 1px 1px 1px; 
+	  margin:  1px 1px 1px 1px;
+	  color: white;
+	  text-align: center;
+    }
+    #controls input {
+      margin: 0 5px;
+    }
+    button {
+      margin: 5px;
+    }
+    /* Update the table styles */
+    table {
+      border-collapse: collapse;
+      width: 600px;          /* Set a fixed width */
+      margin: 10px;     /* Center the table horizontally with auto margins */
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+      padding: 5px;
+      text-align: left;
+    }
+	.content-container {
+		display: flex;
+		gap: 20px
+		margin-bottom: 20px;
+		align-items: flex-start;
+	}
+	.roster-container {
+	}
+	.extra-info{
+	  flex-grow: 0;
+	  height: auto; 
+	  min-width: 300px;
+	  background-color: #f9f9f9;
+	  padding: 10px;
+	  border: 1px solid #ccc;
+	  margin: 30px 1px 1px;
+	}
+	.extra-info h2{
+		margin-top: 0px;	
+	}
+	.info-container{
+	  flex-grow: 0;
+	  height: auto; 
+	  min-width: 250px;
+	  background-color: #f9f9f9;
+	  padding: 10px;
+	  border: 1px solid #ccc;
+	  margin: 68px 1px 1px;
+	}
+	.info-container h2 {
+	  margin-top: 0;
+	}
+    .pairing {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .pairing-text {
+      width: 350px;  /* Adjust as needed */
+      margin-right: 10px;
+    }
+    .pairing-select {
+      margin-right: 5px;
+      width: 200px
+    }
+    .unlock-button {
+      margin-left: 5px;
+    }
+    #competitorsTable tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+	#diagnostics {
+	  font-size: 0.9em;
+	  margin-bottom: 10px;
+	}
+}
+  </style>
+</head>
+
+<body>
+  <!-- The rest of your HTML remains unchanged -->
+  <!-- h1>Donner Competition Software: Double Elimination!</h1 -->
+  <div class="title-section">  
+    <h1>Doner Competition Software</h1>
+  </div>
+  
+  <div id="controls">
+    <input type="text" id="name" placeholder="Name">
+    <input type="text" id="team" placeholder="Team">
+    <button id="addCompetitor">Add Competitor</button>
+    <button id="removeCompetitor">Remove Competitor</button>
+    <button id="sampleTeams">Sample Teams</button>
+    <button id="saveRoster">Save Match</button>
+    <button id="loadRoster">Load Match</button>
+    <input type="file" id="loadRosterInput" style="display:none" accept=".csv">
+    <button id="calcTeamPoints">Calc Team Points</button>
+    <button id="resetScores">Reset Scores</button>
+    <button id="eraseCompetitors" disabled>Reset All Data</button>
+    <button id='adminMode'> Admin Mode </button>
+  </div>
+ 
+  <div class='content-container'> 
+    <div id="roster-container"> 
+      <div id="teamPointsDisplay"></div>
+      <h2>Record</h2>
+      <table id="competitorsTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Team</th>
+            <th>Wins</th>
+            <th>Losses</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Competitor rows will be inserted here -->
+        </tbody>
+      </table>
+    </div> <!-- This is the division for the roster -->
+
+    <div class="info-container">
+      <h2> How to: </h2>
+	  <div id="infoText">
+        <!-- <p> How to use this software <p> -->
+        <ol>
+          <li> Manually add competitors by entering their name and team (optional) into the corresponding entries, then press 'Add Competitor.' </li>
+          <li> Once all competitors are added, you may press 'Begin Competition' to generate the first round of pairings.</li>
+          <li> Select a winner for each match up during the round. Once the round is complete, 
+			press 'Generate Next Round.' The scores will be updated and next round generated.</li>
+          <li> The match ends when only 1 competitor remains.</li>
+        </ol>
+	  </div>
+    </div>
+  </div>
+
+  <div>
+    <button id="beginCompetition">Begin Competition</button>
+  </div>
+  
+  <h2>Match Ups</h2>
+  <div id="results">
+    <!-- Pairings and winner selections will appear here -->
+  </div>
+  
+  <button id="finalizeRound">Finalize: Generate Next Round</button>
+
+  <div class='extra-info'>
+	<h2>Extra information </h2>
+	<ol>	
+          <li> The 'Record' can be saved and then loaded at a later date from your device at any time. </li>
+		  <li> 'Admin Mode' wipes the list of match ups then let's the user edit the scores, names and teams. 
+				User must exit admin mode before the competition can resume. </li>
+		  <li> This page does not need to be refreshed once loaded. The 'Record' and pairings are saved in the 
+				browser cache so if an accidental refresh occurs, the data won't be lost. </li>
+		  <li> For convenience, the Record table can be saved onto your local machine in csv format. 
+				Saved csv's can be reloaded and resumed.</li>
+	</ol>
+	<h3> Match Up Logic</h3>
+	This code is designed to be a replacement for classic 'bracket' style competitions. 
+	This code creates matchups based on competitors' records. Those who are undefeated 
+	will only compete against those who are undefeated. Competitors with the fewest 
+	wins are mathed up first to ensure that BYE's are awarded to those who have 
+	competed the most. The logic prioritizes matching competitors that are not on the
+	same team unless there is no other viable matchup. This algorithm is not perfect 
+	and teammates will be paired sparsely. 
+
+	<ul></ul>
+    <h2> Diagnostics </h2>
+    <div id="diagnostics"> </div>
+  </div>
+
+	May the best revolver win.	
+
+  <script src="main.js"></script>
+  <script type="text/javascript" src="https://cdn.emailjs.com/dist/email.min.js"></script>
+</body>
+</html>
+
