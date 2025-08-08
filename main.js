@@ -2,9 +2,6 @@
 // Feb 18 2025
 // This now uses the 'greedySort' method. 
 //   Works for many many competitors and does a good job preventing teammate matchups. 
-// Adding auto email when match completes
-
-
 document.addEventListener("DOMContentLoaded", () => {
   // UI element references
   const nameInput              = document.getElementById("name");
@@ -26,13 +23,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const competitorsTableBody   = document.querySelector("#competitorsTable tbody");
   const resultsDiv             = document.getElementById("results");
 
-  emailjs.init("sr0d0mok44haIoPb_");
-
-
   // In-memory competitor data.
   let competitors = [];
   if (localStorage.getItem("competitors")) {
     competitors = JSON.parse(localStorage.getItem("competitors"));
+    competitors.forEach(c => {
+      if (typeof c.matches !== "number") {
+        c.matches = (c.wins || 0) + (c.losses || 0);
+      }
+    });
   }
   
   let currentPairings = [];
@@ -109,14 +108,16 @@ document.addEventListener("DOMContentLoaded", () => {
   function updateCompetitorsFromTable() {
     let rows = competitorsTableBody.querySelectorAll("tr");
     let newCompetitors = [];
-    rows.forEach(row => {
+    rows.forEach((row, index) => {
       let cells = row.querySelectorAll("td");
       if (cells.length >= 5) {
+        const existing = competitors[index] || {};
         newCompetitors.push({
           name: cells[1].innerText.trim(),
           team: cells[2].innerText.trim(),
           wins: parseInt(cells[3].innerText.trim(), 10) || 0,
-          losses: parseInt(cells[4].innerText.trim(), 10) || 0
+          losses: parseInt(cells[4].innerText.trim(), 10) || 0,
+          matches: existing.matches || 0
         });
       }
     });
@@ -128,7 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function addCompetitor(name, team) {
     if (!name) return alert("Name is required");
     if (competitors.some(c => c.name === name)) return alert("Competitor already exists");
-    competitors.push({ name, team, wins: 0, losses: 0 });
+    competitors.push({ name, team, wins: 0, losses: 0, matches: 0 });
     updateCompetitorsTable();
   }
 
@@ -153,7 +154,8 @@ document.addEventListener("DOMContentLoaded", () => {
           name: `Competitor ${competitorNumber} (${team})`,
           team: `Team ${team}`,
           wins: 0,
-          losses: 0
+          losses: 0,
+          matches: 0
         });
       }
     }
@@ -163,7 +165,8 @@ document.addEventListener("DOMContentLoaded", () => {
         name: `Competitor ${(team_num * comp_num) + i}`,
         team: "",
         wins: 0,
-        losses: 0
+        losses: 0,
+        matches: 0
       });
     } */
     competitors = competitors.concat(sampleCompetitors);
@@ -191,6 +194,7 @@ document.addEventListener("DOMContentLoaded", () => {
         competitors.forEach(c => {
           c.wins = 0;
           c.losses = 0;
+          c.matches = 0;
         });
         updateCompetitorsTable();
         teamPointsDisplay.innerHTML = "";
@@ -247,11 +251,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const fields = line.split(",").map(s => s.replace(/^"|"$/g, '').trim());
         if (fields.length < 4) continue;
         const [name, team, wins, losses] = fields;
+        const winsNum = parseInt(wins, 10) || 0;
+        const lossesNum = parseInt(losses, 10) || 0;
         newCompetitors.push({
           name: name,
           team: team,
-          wins: parseInt(wins, 10) || 0,
-          losses: parseInt(losses, 10) || 0
+          wins: winsNum,
+          losses: lossesNum,
+          matches: winsNum + lossesNum
         });
       }
       competitors = newCompetitors;
@@ -275,7 +282,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function greedyPairGroup(group) {
     let byeCandidate = null;
     if (group.length > 1 && group.length % 2 !== 0) {
-      let sortedGroup = group.slice().sort((a, b) => a.wins - b.wins);
+      let sortedGroup = group.slice().sort((a, b) => (a.matches || 0) - (b.matches || 0));
       byeCandidate = sortedGroup[sortedGroup.length - 1];
       group = group.filter(c => c.name !== byeCandidate.name);
     }
@@ -502,30 +509,41 @@ document.addEventListener("DOMContentLoaded", () => {
       const pairingDiv = resultsDiv.children[i];
       if (!pairingDiv) continue;
       const select = pairingDiv.querySelector("select");
-      if (!select) continue;
+      if (!select) {
+        const advancer = pair.comp1 === "BYE" ? pair.comp2 : pair.comp1;
+        competitors.forEach(comp => {
+          if (comp.name === advancer) comp.matches = (comp.matches || 0) + 1;
+        });
+        continue;
+      }
       const winner = select.value;
       if (!winner) continue;
       const loser = (winner === pair.comp1) ? pair.comp2 : pair.comp1;
       competitors.forEach(comp => {
-        if (comp.name === winner) comp.wins += 1;
-        if (comp.name === loser) comp.losses += 1;
+        if (comp.name === winner) {
+          comp.wins += 1;
+          comp.matches = (comp.matches || 0) + 1;
+        }
+        if (comp.name === loser) {
+          comp.losses += 1;
+          comp.matches = (comp.matches || 0) + 1;
+        }
       });
     }
 
     updateCompetitorsTable();
     calcTeamPoints();
-		clearPairings();
+    clearPairings();
 
     if (competitors.filter(c => c.losses < 2).length > 1) {
       displayPairings();
     } else {
       alert("Competition finished!");
       competitionStarted = false;
-			localStorage.setItem("competitionStarted", "false");
+      localStorage.setItem("competitionStarted", "false");
       finalizeRoundButton.disabled = true;
-			clearPairings();
+      clearPairings();
     }
-	emailMatchResults();
   }
 
   // Calculate team points.
@@ -564,6 +582,7 @@ document.addEventListener("DOMContentLoaded", () => {
       resetButton.disabled = true;
       eraseButton.disabled = true;
       finalizeRoundButton.disabled = true;
+      beginCompetitionButton.disabled = true;
       // Change button text.
       adminModeButton.innerText = "Exit Admin Mode";
       updateCompetitorsTable();
@@ -583,29 +602,11 @@ document.addEventListener("DOMContentLoaded", () => {
       eraseButton.disabled = competitors.length === 0;
       // Keep finalizeRoundButton disabled if competition hasn't started.
       finalizeRoundButton.disabled = !competitionStarted;
+      beginCompetitionButton.disabled = competitionStarted || competitors.length === 0;
       adminModeButton.innerText = "Admin Mode";
       updateCompetitorsTable();
     }
   });
-
-  // NEW: Update competitors from the editable table.
-  function updateCompetitorsFromTable() {
-    let rows = competitorsTableBody.querySelectorAll("tr");
-    let newCompetitors = [];
-    rows.forEach(row => {
-      let cells = row.querySelectorAll("td");
-      if (cells.length >= 5) {
-        newCompetitors.push({
-          name: cells[1].innerText.trim(),
-          team: cells[2].innerText.trim(),
-          wins: parseInt(cells[3].innerText.trim(), 10) || 0,
-          losses: parseInt(cells[4].innerText.trim(), 10) || 0
-        });
-      }
-    });
-    competitors = newCompetitors;
-    saveCompetitors();
-  }
 
   function updateDiagnostics(){
 	const diagnostics = document.getElementById("diagnostics");
@@ -639,27 +640,8 @@ document.addEventListener("DOMContentLoaded", () => {
 		localStorage.removeItem('currentPairings');
 	}
 
-	function emailMatchResults() {
-	  // Generate CSV content from the current competitors array.
-	  let csvContent = "Name,Team,Wins,Losses\n";
-	  competitors.forEach(comp => {
-		csvContent += `"${comp.name}","${comp.team}",${comp.wins},${comp.losses}\n`;
-	  });
-
-	  // Call EmailJS to send the email.
-	  emailjs.send("service_9p60e2f", "template_arqbj1c", {
-		subject: "Match Results",
-		message: csvContent
-	  })
-	  .then(function(response) {
-		console.log('Email sent successfully!', response.status, response.text);
-	  }, function(error) {
-		console.error('Failed to send email:', error);
-	  });
-	}
-
   // Routine Update of diagnostics!
-  setInterval(updateDiagnostics, 5000) 
+  setInterval(updateDiagnostics, 5000)
   updateDiagnostics();
 
   // --- Event Listeners ---
