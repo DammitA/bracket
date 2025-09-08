@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Pairing Logic Tests</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    .pass { color: #0a0; }
+    .fail { color: #a00; }
+    pre { background: #f6f8fa; padding: 8px; overflow: auto; }
+  </style>
+  <script src="../logic.js"></script>
+</head>
+<body>
+  <h1>Pairing Logic Tests</h1>
+  <div id="results"></div>
+  <script>
+    (function(){
+      const out = document.getElementById('results');
+
+      function log(name, ok, details) {
+        const div = document.createElement('div');
+        div.className = ok ? 'pass' : 'fail';
+        div.textContent = (ok ? 'PASS: ' : 'FAIL: ') + name;
+        out.appendChild(div);
+        if (!ok && details) {
+          const pre = document.createElement('pre');
+          pre.textContent = details;
+          out.appendChild(pre);
+        }
+      }
+
+      function mk(name, team, wins=0, losses=0) { return { name, team, wins, losses }; }
+      function conflicts(pairs, teamMap) {
+        return pairs.filter(p => p.comp2 !== 'BYE' && teamMap[p.comp1] && teamMap[p.comp1] === teamMap[p.comp2]).length;
+      }
+
+      // Seeded RNG for deterministic tests
+      function seeded(seed){
+        let s = seed >>> 0;
+        return function(){
+          // xorshift32
+          s ^= s << 13; s >>>= 0;
+          s ^= s >>> 17; s >>>= 0;
+          s ^= s << 5;  s >>>= 0;
+          return (s >>> 0) / 0x100000000;
+        };
+      }
+
+      try {
+        // 1) Single elim, avoid teammate matches if possible
+        (function(){
+          const comps = [
+            mk('A1','T1'), mk('A2','T1'), mk('B1','T2'), mk('B2','T2')
+          ];
+          const pairs = Pairing.pairCompetitors(comps, 1, { rng: seeded(1) });
+          const teamMap = Object.fromEntries(comps.map(c=>[c.name,c.team]));
+          log('Single elim: avoid teammate conflicts', conflicts(pairs, teamMap) === 0, JSON.stringify(pairs,null,2));
+        })();
+
+        // 2) Double elim BYE goes to highest wins in group
+        (function(){
+          const comps = [
+            mk('A1','T1',3,0), mk('A2','T2',1,0), mk('A3','T3',2,0)
+          ];
+          const pairs = Pairing.pairCompetitors(comps, 2, { rng: seeded(2) });
+          const byeHolders = pairs.filter(p => p.comp2 === 'BYE').map(p => p.comp1);
+          log('Double elim: BYE to highest wins in loss group', byeHolders.length === 1 && byeHolders[0] === 'A1', JSON.stringify(pairs,null,2));
+        })();
+
+        // 3) Finals pairing when two active
+        (function(){
+          const comps = [ mk('A','T1',4,0), mk('B','T2',3,1), mk('C','T3',1,2) ];
+          const pairs = Pairing.pairCompetitors(comps, 2, { rng: seeded(3) });
+          log('Two active competitors are paired', pairs.length === 1 && ((pairs[0].comp1==='A'&&pairs[0].comp2==='B')||(pairs[0].comp1==='B'&&pairs[0].comp2==='A')), JSON.stringify(pairs,null,2));
+        })();
+
+        // 4) Threshold>2 shift lone undefeated into 1-loss group
+        (function(){
+          const comps = [ mk('U','T1',3,0), mk('L1','T2',2,1), mk('L2','T3',2,1) ];
+          const pairs = Pairing.pairCompetitors(comps, 3, { rng: seeded(4) });
+          const names = pairs.flatMap(p => [p.comp1, p.comp2]).filter(n=>n!=='BYE');
+          log('ET>2: lone undefeated merges into 1-loss group', names.includes('U'), JSON.stringify(pairs,null,2));
+        })();
+
+        // 5) Team-avoidance local improvement reduces forced conflicts where possible
+        (function(){
+          const comps = [ mk('A1','T1'), mk('A2','T1'), mk('A3','T1'), mk('B1','T2') ];
+          const teamMap = Object.fromEntries(comps.map(c=>[c.name,c.team]));
+          const pairs = Pairing.pairCompetitors(comps, 1, { rng: seeded(5) });
+          // With 3 from T1 and 1 from T2, exactly one conflict is unavoidable
+          log('Unavoidable conflict count is 1 when teams are 3:1', conflicts(pairs, teamMap) === 1, JSON.stringify(pairs,null,2));
+        })();
+
+        // 6) Larger group: expect zero conflicts when perfectly balanced
+        (function(){
+          const comps = [];
+          for (let i=1;i<=5;i++){ comps.push(mk('A'+i,'T1')); comps.push(mk('B'+i,'T2')); }
+          // Give different wins to avoid first-round shuffle effects
+          comps.forEach((c,i)=>{ c.wins = i%2; });
+          const pairs = Pairing.pairCompetitors(comps, 2, { rng: seeded(6) });
+          const teamMap = Object.fromEntries(comps.map(c=>[c.name,c.team]));
+          log('Balanced 10 competitors avoid teammate conflicts', conflicts(pairs, teamMap) === 0, JSON.stringify(pairs,null,2));
+        })();
+
+      } catch (e) {
+        log('Unhandled error running tests', false, String(e.stack||e));
+      }
+    })();
+  </script>
+</body>
+</html>
+
