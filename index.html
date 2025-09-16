@@ -259,17 +259,26 @@
     <div class='extra-info'>
 	  <h2>Extra information <button id="toggleExtraInfo" class="link-button" aria-expanded="true" aria-controls="extraInfoBody">Hide</button></h2>
 	  <div id="extraInfoBody">
-	  <ol>	
+	  <ol>
             <li> Records and current pairings persist locally in your browser. You can export/import the 'Record' as CSV at any time.</li>
-            <li> 'Admin Mode' clears current pairings and lets you edit names, teams, wins, and losses. Exit Admin Mode to resume the competition.</li>
-            <li> Saved pairings are validated against the current roster and loss threshold; if they don’t match, new pairings are computed automatically.</li>
-            <li> BYEs do not count as wins or losses. When a loss group is odd-sized, the highest‑wins competitor receives the BYE, reducing repeated BYEs as others accrue wins.</li>
-            <li> Team avoidance is prioritized. The matcher minimizes same‑team pairings with randomized attempts and a light improvement pass, but teammates may still be paired when unavoidable.</li>
+            <li> Saved pairings are validated against the current roster and loss threshold; if they don't match, new pairings are computed automatically.</li>
+            <li> BYEs do not count as wins or losses. When a loss group is odd-sized, the highest-wins competitor receives the BYE, reducing repeated BYEs as others accrue wins.</li>
+            <li> Team avoidance is prioritized. The matcher minimizes same-team pairings with randomized attempts and a light improvement pass, but teammates may still be paired when unavoidable.</li>
 	  </ol>
+	  <h3>Interface Quick Reference</h3>
+	  <ul>
+	    <li><strong>Add/Remove Competitor</strong> - Manage the roster one athlete at a time; teams are optional and drive the team-points view.</li>
+	    <li><strong>Save/Load Match</strong> - Export the roster and records to CSV or restore them from a previous event or device.</li>
+	    <li><strong>Reset Scores</strong> - Zero out wins and losses without touching the roster for a fresh run-through.</li>
+	    <li><strong>Reset All Data</strong> - Clear competitors, pairings, round history, and stored browser data for a clean slate.</li>
+	    <li><strong>Begin Competition / Finalize</strong> - Generate round pairings and lock in results once every winner is selected.</li>
+	    <li><strong>Admin Mode</strong> - Temporarily unlock the table so names, teams, wins, and losses can be edited directly.</li>
+	    <li><strong>Calc Team Points</strong> - Summarize cumulative wins minus losses by team for quick squad standings.</li>
+	    <li><strong>2nd-3rd Tiebreaker</strong> - When enabled, produces a one-off playoff match to resolve podium ties.</li>
+	  </ul>
 	  <h3> Match Up Logic</h3>
-	  This software replaces classic fixed brackets with dynamic pairings by record. Undefeated competitors play undefeated; 1‑loss play 1‑loss, etc. Within each loss group, competitors with fewer wins tend to be paired first so BYEs go to those who have played the most. Team‑avoidance is prioritized but not guaranteed when constraints force it.
-
-	  <ul></ul>
+	  <p>This software replaces classic fixed brackets with dynamic pairings by record. Undefeated competitors play undefeated; one-loss play one-loss, and so on. Within each loss group, competitors with fewer wins tend to be paired first so BYEs go to those who have fought the most. Team avoidance is prioritized but not guaranteed when constraints force it.</p>
+	  <p><strong>Single elimination</strong> (loss threshold = 1) naturally produces a finals pairing once only two undefeated entrants remain; any odd round assigns the BYE to the most battle-tested undefeated player to keep the bracket balanced. <strong>Double elimination</strong> (threshold = 2) keeps athletes alive until their second loss, tracks undefeated and one-loss brackets separately, and automatically promotes a lone undefeated into the one-loss pool if higher thresholds create a mismatch. When the field shrinks to two, the system schedules the decisive rematch; if a custom tiebreaker is toggled, a one-off playoff is generated without disturbing prior rounds.</p>
       <h2> Diagnostics </h2>
       <div id="diagnostics"> </div>
       </div>

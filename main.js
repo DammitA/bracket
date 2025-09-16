@@ -293,22 +293,58 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Basic CSV line parser that respects quoted commas and escaped quotes.
+  function parseCsvLine(line) {
+    const fields = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (inQuotes) {
+        if (char === '"') {
+          if (line[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          current += char;
+        }
+      } else if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        fields.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    fields.push(current.trim());
+    return fields;
+  }
+
   // Load roster from CSV.
   function loadRoster(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+    const input = event.target;
+    const file = input.files[0];
+    if (!file) {
+      input.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = function(e) {
       const contents = e.target.result;
       const lines = contents.split(/\r?\n/).filter(line => line.trim() !== "");
       if (lines.length < 2) {
         alert("Invalid CSV file.");
+        input.value = "";
         return;
       }
       const newCompetitors = [];
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i];
-        const fields = line.split(",").map(s => s.replace(/^"|"$/g, '').trim());
+        const fields = parseCsvLine(line);
         if (fields.length < 4) continue;
         const [name, team, wins, losses] = fields;
         newCompetitors.push({
@@ -320,9 +356,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       competitors = newCompetitors;
       updateCompetitorsTable();
+      input.value = "";
     };
     reader.onerror = function() {
       alert("Error reading file.");
+      input.value = "";
     };
     reader.readAsText(file);
   }
