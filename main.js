@@ -854,9 +854,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // NEW: Admin Mode.
   adminModeButton.addEventListener("click", () => {
     if (!adminMode) {
-      if (!confirm("Entering Admin Mode will erase current pairings. Continue?")) return;
+      if (!confirm("Entering Admin Mode will temporarily disable pairing actions. Continue?")) return;
       adminMode = true;
-			clearPairings();
       resultsDiv.innerHTML = "";
       // Disable all other buttons except admin mode.
       addButton.disabled = true;
@@ -867,15 +866,15 @@ document.addEventListener("DOMContentLoaded", () => {
       calcTeamPointsButton.disabled = true;
       resetButton.disabled = true;
       eraseButton.disabled = true;
-      finalizeRoundButton.disabled = true;
       // Change button text.
       adminModeButton.innerText = "Exit Admin Mode";
       updateCompetitorsTable();
+      // Ensure finalize stays disabled while in Admin Mode.
+      finalizeRoundButton.disabled = true;
     } else {
       if (!confirm("Exit Admin Mode? Your changes will be saved.")) return;
       // Update competitors from table edits.
       updateCompetitorsFromTable();
-			clearPairings();
       adminMode = false;
       addButton.disabled = false;
       removeButton.disabled = false;
@@ -889,6 +888,8 @@ document.addEventListener("DOMContentLoaded", () => {
       finalizeRoundButton.disabled = !competitionStarted;
       adminModeButton.innerText = "Admin Mode";
       updateCompetitorsTable();
+      displayPairings();
+      updateFinalizeEnabled();
     }
   });
 
