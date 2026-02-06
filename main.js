@@ -22,10 +22,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const tiebreakThirdFourthBtn = document.getElementById("tiebreakThirdFourth");
   const calcTeamPointsButton   = document.getElementById("calcTeamPoints");
   const teamPointsDisplay      = document.getElementById("teamPointsDisplay");
+  const teamPointsContainer    = document.getElementById("teamPointsContainer");
   const statusBar              = document.getElementById("statusBar");
   const adminModeButton        = document.getElementById("adminMode"); // New Admin Mode button
   const toggleHowToBtn         = document.getElementById("toggleHowTo");
   const toggleExtraInfoBtn     = document.getElementById("toggleExtraInfo");
+  const toggleHistoryBtn       = document.getElementById("toggleHistory");
+  const historyBody            = document.getElementById("historyBody");
+  const historyBracket         = document.getElementById("historyBracket");
   
   const competitorsTableBody   = document.querySelector("#competitorsTable tbody");
   const filterActiveOnly       = document.getElementById("filterActiveOnly");
@@ -67,6 +71,16 @@ document.addEventListener("DOMContentLoaded", () => {
   let competitionFinished = (localStorage.getItem("competitionFinished") || "false") === "true";
   let adminMode = false; // New flag
   let tiebreakerMode = false;
+  let matchHistory = [];
+  const storedHistory = localStorage.getItem("matchHistory");
+  if (storedHistory) {
+    try {
+      const parsed = JSON.parse(storedHistory);
+      if (Array.isArray(parsed)) matchHistory = parsed;
+    } catch (e) {
+      matchHistory = [];
+    }
+  }
 
   // Save the competitors array to localStorage.
   function saveCompetitors() {
@@ -151,13 +165,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     finalizeRoundButton.disabled = !competitionStarted;
     saveCompetitors();
+    updateTeamPointsVisibility();
     populateTeamFilterOptions();
     updateStatusBar();
     updateTiebreakerButtonState();
   }
 
-  // Read the editable roster table and update the competitor array.
-  function updateCompetitorsFromTable() {
+  // Read the editable roster table and return the competitor array.
+  function readCompetitorsFromTable() {
     let rows = competitorsTableBody.querySelectorAll("tr");
     let newCompetitors = [];
     rows.forEach(row => {
@@ -171,6 +186,23 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     });
+    return newCompetitors;
+  }
+
+  function hasDuplicateNames(list) {
+    const seen = new Set();
+    for (const c of list) {
+      const name = (c.name || "").trim();
+      if (!name) continue;
+      if (seen.has(name)) return name;
+      seen.add(name);
+    }
+    return null;
+  }
+
+  // Read the editable roster table and update the competitor array.
+  function updateCompetitorsFromTable() {
+    const newCompetitors = readCompetitorsFromTable();
     competitors = newCompetitors;
     saveCompetitors();
   }
@@ -228,6 +260,7 @@ document.addEventListener("DOMContentLoaded", () => {
       updateCompetitorsTable();
       resultsDiv.innerHTML = "";
       teamPointsDisplay.innerHTML = "";
+      updateTeamPointsVisibility();
       competitionStarted = false;
       localStorage.setItem("competitionStarted", "false");
       competitionFinished = false;
@@ -235,6 +268,7 @@ document.addEventListener("DOMContentLoaded", () => {
       beginCompetitionButton.disabled = true;
       finalizeRoundButton.disabled = true;
 			clearPairings();
+      clearMatchHistory();
       roundNumber = 0;
       localStorage.setItem("roundNumber", String(roundNumber));
       updateStatusBar();
@@ -252,6 +286,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         updateCompetitorsTable();
         teamPointsDisplay.innerHTML = "";
+        updateTeamPointsVisibility();
         resultsDiv.innerHTML = "";
         competitionStarted = false;
 				localStorage.setItem("competitionStarted", "false");
@@ -262,6 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
         beginCompetitionButton.disabled = competitors.length === 0;
         finalizeRoundButton.disabled = true;
 				clearPairings();
+        clearMatchHistory();
         updateStatusBar();
         updateTiebreakerButtonState();
     }
@@ -355,6 +391,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
       competitors = newCompetitors;
+      clearMatchHistory();
       updateCompetitorsTable();
       input.value = "";
     };
@@ -522,7 +559,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let pairs = [];
     Object.keys(groups).sort((a, b) => a - b).forEach(loss => {
       let group = groups[loss];
-      let groupPairs = greedyPairGroup(group);
+      let groupPairs = greedyPairGroup(group).map(p => {
+        return { ...p, lossGroup: parseInt(loss, 10) };
+      });
       pairs = pairs.concat(groupPairs);
     });
     return pairs;
@@ -694,7 +733,7 @@ document.addEventListener("DOMContentLoaded", () => {
 				}
 				unlockButton.addEventListener("click", function() {
         const select = pairingDiv.querySelector("select");
-        if (select) {
+      if (select) {
           // Revert previously applied selection (if any)
           revertSelectionForPair(index);
           select.disabled = false;
@@ -704,6 +743,7 @@ document.addEventListener("DOMContentLoaded", () => {
           savePairings();
           unlockButton.disabled = true;
           updateFinalizeEnabled();
+          renderMatchHistory();
         }
       });
 				pairingDiv.appendChild(unlockButton);
@@ -712,6 +752,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			});
 			// Update finalize state after rendering/restoring selections
 			updateFinalizeEnabled();
+      renderMatchHistory();
 		}
 
 
@@ -722,18 +763,49 @@ document.addEventListener("DOMContentLoaded", () => {
       alert("Please select a winner for every match before finalizing.");
       return;
     }
+    const roundEntry = {
+      label: tiebreakerMode ? 'Tiebreaker: 2nd–3rd' : `Round ${roundNumber}`,
+      round: tiebreakerMode ? null : roundNumber,
+      matches: []
+    };
     // Live updates already applied on selection; for tiebreaker, capture placements
     let lastWinner = null;
     let lastLoser = null;
     for (let i = 0; i < currentPairings.length; i++) {
       const pair = currentPairings[i];
-      if (!pair || pair.comp2 === "BYE" || !pair.selected) continue;
+      if (!pair) continue;
+      if (pair.comp2 === "BYE") {
+        roundEntry.matches.push({
+          comp1: pair.comp1,
+          comp2: pair.comp2,
+          winner: pair.comp1,
+          loser: null,
+          bye: true,
+          lossGroup: (pair.lossGroup !== undefined ? pair.lossGroup : null)
+        });
+        continue;
+      }
+      if (!pair.selected) continue;
       const winner = pair.selected;
       const loser = (winner === pair.comp1) ? pair.comp2 : pair.comp1;
       if (tiebreakerMode) {
         lastWinner = winner;
         lastLoser = loser;
       }
+      roundEntry.matches.push({
+        comp1: pair.comp1,
+        comp2: pair.comp2,
+        winner: winner,
+        loser: loser,
+        bye: false,
+        lossGroup: (pair.lossGroup !== undefined ? pair.lossGroup : null)
+      });
+    }
+    if (roundEntry.matches.length > 0) {
+      roundEntry.recordSnapshot = buildRecordSnapshot();
+      matchHistory.push(roundEntry);
+      saveMatchHistory();
+      renderMatchHistory();
     }
 
     // If this was a 2nd–3rd tiebreaker, assign explicit placements
@@ -793,6 +865,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Calculate team points.
+  function updateTeamPointsVisibility() {
+    if (!teamPointsContainer) return;
+    const hasTeams = competitors.some(comp => comp.team && comp.team.trim() !== "");
+    teamPointsContainer.style.display = hasTeams ? "" : "none";
+  }
+
   function calcTeamPoints() {
     let teamTotals = {};
     competitors.forEach(comp => {
@@ -803,14 +881,20 @@ document.addEventListener("DOMContentLoaded", () => {
         teamTotals[comp.team] += (comp.wins - comp.losses);
       }
     });
+    if (Object.keys(teamTotals).length === 0) {
+      teamPointsDisplay.innerHTML = "";
+      updateTeamPointsVisibility();
+      return;
+    }
     // Sort teams by points desc
     const sorted = Object.entries(teamTotals).sort((a,b) => b[1] - a[1]);
-    let output = "<h3>Team Points (Sum of Wins-Losses)</h3><ul>";
+    let output = "<ul>";
     sorted.forEach(([team, pts]) => {
       output += `<li>${team}: ${pts} points</li>`;
     });
     output += "</ul>";
     teamPointsDisplay.innerHTML = output;
+    updateTeamPointsVisibility();
     updateStatusBar();
     updateTiebreakerButtonState();
   }
@@ -831,6 +915,7 @@ document.addEventListener("DOMContentLoaded", () => {
     savePairings();
     updateCompetitorsTable();
     calcTeamPoints();
+    renderMatchHistory();
   }
 
   // Revert immediate record update when a pairing selection is reset
@@ -849,6 +934,7 @@ document.addEventListener("DOMContentLoaded", () => {
     savePairings();
     updateCompetitorsTable();
     calcTeamPoints();
+    renderMatchHistory();
   }
 
   // NEW: Admin Mode.
@@ -873,8 +959,16 @@ document.addEventListener("DOMContentLoaded", () => {
       finalizeRoundButton.disabled = true;
     } else {
       if (!confirm("Exit Admin Mode? Your changes will be saved.")) return;
+      // Validate unique names before saving edits.
+      const proposed = readCompetitorsFromTable();
+      const dup = hasDuplicateNames(proposed);
+      if (dup) {
+        alert(`Duplicate competitor name found: "${dup}". Names must be unique.`);
+        return;
+      }
       // Update competitors from table edits.
-      updateCompetitorsFromTable();
+      competitors = proposed;
+      saveCompetitors();
       adminMode = false;
       addButton.disabled = false;
       removeButton.disabled = false;
@@ -941,6 +1035,13 @@ document.addEventListener("DOMContentLoaded", () => {
     box.style.display = collapsed ? 'none' : '';
     toggleExtraInfoBtn.textContent = collapsed ? 'Show' : 'Hide';
     toggleExtraInfoBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  }
+
+  function applyHistoryCollapsed(collapsed) {
+    if (!historyBody || !toggleHistoryBtn) return;
+    historyBody.style.display = collapsed ? 'none' : '';
+    toggleHistoryBtn.textContent = collapsed ? 'Show' : 'Hide';
+    toggleHistoryBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
   }
 
   // Ranking and tiebreak helpers
@@ -1023,6 +1124,212 @@ document.addEventListener("DOMContentLoaded", () => {
 		localStorage.removeItem('currentPairings');
 		localStorage.removeItem('pairingsKey');
 	}
+
+  function saveMatchHistory() {
+    localStorage.setItem('matchHistory', JSON.stringify(matchHistory));
+  }
+
+  function buildRecordSnapshot() {
+    const snapshot = {};
+    competitors.forEach(c => {
+      snapshot[c.name] = { wins: c.wins || 0, losses: c.losses || 0 };
+    });
+    return snapshot;
+  }
+
+  function cloneRecordSnapshot(src) {
+    const out = {};
+    Object.keys(src || {}).forEach(name => {
+      const rec = src[name] || {};
+      out[name] = { wins: rec.wins || 0, losses: rec.losses || 0 };
+    });
+    return out;
+  }
+
+  function applyMatchToSnapshot(snapshot, match) {
+    if (!match || match.bye || !match.winner || !match.loser) return;
+    if (!snapshot[match.winner]) snapshot[match.winner] = { wins: 0, losses: 0 };
+    if (!snapshot[match.loser]) snapshot[match.loser] = { wins: 0, losses: 0 };
+    snapshot[match.winner].wins += 1;
+    snapshot[match.loser].losses += 1;
+  }
+
+  function buildBaseSnapshotFromHistory(history) {
+    const base = buildRecordSnapshot();
+    if (!Array.isArray(history)) return base;
+    history.forEach(round => {
+      const matches = Array.isArray(round.matches) ? round.matches : [];
+      matches.forEach(match => {
+        if (!match || match.bye || !match.winner || !match.loser) return;
+        if (!base[match.winner]) base[match.winner] = { wins: 0, losses: 0 };
+        if (!base[match.loser]) base[match.loser] = { wins: 0, losses: 0 };
+        base[match.winner].wins = Math.max(0, (base[match.winner].wins || 0) - 1);
+        base[match.loser].losses = Math.max(0, (base[match.loser].losses || 0) - 1);
+      });
+    });
+    return base;
+  }
+
+  function clearMatchHistory() {
+    matchHistory = [];
+    localStorage.removeItem('matchHistory');
+    renderMatchHistory();
+  }
+
+  function buildLiveRoundEntry() {
+    if (!competitionStarted) return null;
+    if (!Array.isArray(currentPairings) || currentPairings.length === 0) return null;
+    const label = tiebreakerMode ? "Tiebreaker (Live)" : `Round ${roundNumber} (Live)`;
+    const entry = { label, round: tiebreakerMode ? null : roundNumber, matches: [], recordSnapshot: buildRecordSnapshot() };
+    currentPairings.forEach(pair => {
+      if (!pair) return;
+      if (pair.comp2 === "BYE") {
+        entry.matches.push({
+          comp1: pair.comp1,
+          comp2: pair.comp2,
+          winner: pair.comp1,
+          loser: null,
+          bye: true,
+          lossGroup: (pair.lossGroup !== undefined ? pair.lossGroup : null)
+        });
+        return;
+      }
+      const winner = pair.selected || null;
+      const loser = winner ? ((winner === pair.comp1) ? pair.comp2 : pair.comp1) : null;
+      entry.matches.push({
+        comp1: pair.comp1,
+        comp2: pair.comp2,
+        winner: winner,
+        loser: loser,
+        bye: false,
+        lossGroup: (pair.lossGroup !== undefined ? pair.lossGroup : null)
+      });
+    });
+    return entry.matches.length > 0 ? entry : null;
+  }
+
+  function renderMatchHistory() {
+    if (!historyBracket) return;
+    historyBracket.innerHTML = "";
+    const liveEntry = buildLiveRoundEntry();
+    const hasHistory = Array.isArray(matchHistory) && matchHistory.length > 0;
+    if (!hasHistory && !liveEntry) {
+      const empty = document.createElement("div");
+      empty.className = "history-empty";
+      empty.textContent = "No matches recorded yet.";
+      historyBracket.appendChild(empty);
+      return;
+    }
+    function appendMatchList(list, container, recordMap) {
+      const lookup = recordMap || {};
+      function displayName(name) {
+        if (!name || name === "BYE") return "(BYE)";
+        const rec = lookup[name];
+        if (rec && typeof rec.wins === "number" && typeof rec.losses === "number") {
+          return `${name} (${rec.wins}-${rec.losses})`;
+        }
+        return name;
+      }
+      list.forEach(match => {
+        const matchDiv = document.createElement("div");
+        matchDiv.className = "history-match";
+
+        const players = document.createElement("div");
+        players.className = "history-players";
+
+        const hasWinner = !!match.winner;
+        const topName = hasWinner ? match.winner : match.comp1;
+        const bottomName = hasWinner ? (match.winner === match.comp1 ? match.comp2 : match.comp1) : match.comp2;
+
+        const p1 = document.createElement("div");
+        p1.className = "history-player";
+        p1.textContent = displayName(topName);
+        if (hasWinner && topName && topName !== "BYE") p1.classList.add("winner");
+        players.appendChild(p1);
+
+        const p2 = document.createElement("div");
+        p2.className = "history-player";
+        if (match.bye || bottomName === "BYE") p2.classList.add("bye");
+        p2.textContent = displayName(bottomName);
+        if (hasWinner && bottomName && bottomName !== "BYE") p2.classList.add("loser");
+        players.appendChild(p2);
+
+        matchDiv.appendChild(players);
+
+        container.appendChild(matchDiv);
+      });
+    }
+
+    const derivedSnapshots = [];
+    const needsDerived = hasHistory && matchHistory.some(r => !r.recordSnapshot);
+    if (needsDerived) {
+      let running = buildBaseSnapshotFromHistory(matchHistory);
+      matchHistory.forEach((round, idx) => {
+        const matches = Array.isArray(round.matches) ? round.matches : [];
+        const next = cloneRecordSnapshot(running);
+        matches.forEach(match => applyMatchToSnapshot(next, match));
+        derivedSnapshots[idx] = next;
+        running = next;
+      });
+    }
+
+    const renderRound = (round, recordMap) => {
+      const roundCol = document.createElement("div");
+      roundCol.className = "history-round";
+
+      const title = document.createElement("div");
+      title.className = "history-round-title";
+      title.textContent = round.label || "Round";
+      roundCol.appendChild(title);
+
+      const matches = Array.isArray(round.matches) ? round.matches : [];
+      if (matches.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "history-empty";
+        empty.textContent = "No matches in this round.";
+        roundCol.appendChild(empty);
+      } else {
+        const winners = matches.filter(m => m.lossGroup === 0);
+        const losers = matches.filter(m => m.lossGroup === 1);
+        const other = matches.filter(m => m.lossGroup !== 0 && m.lossGroup !== 1);
+
+        if (winners.length > 0) {
+          const sub = document.createElement("div");
+          sub.className = "history-group-title";
+          sub.textContent = "Winners Bracket";
+          roundCol.appendChild(sub);
+          appendMatchList(winners, roundCol, recordMap);
+        }
+        if (losers.length > 0) {
+          const sub = document.createElement("div");
+          sub.className = "history-group-title";
+          sub.textContent = "Losers Bracket (1 Loss)";
+          roundCol.appendChild(sub);
+          appendMatchList(losers, roundCol, recordMap);
+        }
+        if (other.length > 0) {
+          const sub = document.createElement("div");
+          sub.className = "history-group-title";
+          sub.textContent = "Matches";
+          roundCol.appendChild(sub);
+          appendMatchList(other, roundCol, recordMap);
+        }
+      }
+
+      historyBracket.appendChild(roundCol);
+    };
+
+    if (hasHistory) {
+      matchHistory.forEach((round, idx) => {
+        const recordMap = round.recordSnapshot || derivedSnapshots[idx] || {};
+        renderRound(round, recordMap);
+      });
+    }
+    if (liveEntry) {
+      const recordMap = liveEntry.recordSnapshot || buildRecordSnapshot();
+      renderRound(liveEntry, recordMap);
+    }
+  }
 
   function getPairingsKey() {
     const names = competitors.map(c => c.name).sort();
@@ -1112,6 +1419,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Match History toggle behavior
+  const historyCollapsedStored = localStorage.getItem('historyCollapsed');
+  let historyCollapsed = historyCollapsedStored === 'true';
+  applyHistoryCollapsed(historyCollapsed);
+  if (toggleHistoryBtn) {
+    toggleHistoryBtn.addEventListener('click', () => {
+      historyCollapsed = !historyCollapsed;
+      localStorage.setItem('historyCollapsed', historyCollapsed ? 'true' : 'false');
+      applyHistoryCollapsed(historyCollapsed);
+    });
+  }
+
   // Tiebreaker button
   if (tiebreakThirdFourthBtn) {
     tiebreakThirdFourthBtn.addEventListener('click', () => {
@@ -1132,6 +1451,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   
   updateCompetitorsTable();
+  renderMatchHistory();
   displayPairings();
   updateStatusBar();
   updateTiebreakerButtonState();

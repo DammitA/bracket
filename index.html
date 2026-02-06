@@ -15,12 +15,15 @@
       --btn-text: #222;
       --btn-disabled: #e9e9e9;
       --btn-disabled-text: #9a9a9a;
+      --history-col-width: 140px;
+      --layout-max: 1340px;
     }
     body {
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      margin: 20px auto;
+      margin: 20px 20px 20px 20px;
       color: var(--text);
-	  max-width: 960px;
+      width: auto;
+	  max-width: none;
       position: relative;
       min-height: 100vh;
     }
@@ -42,7 +45,7 @@
     }
     .title-section {
       width: 100%;
-      max-width: 1500px;
+      max-width: none;
       padding: 12px 16px;
       margin: 4px 0 12px;
       color: var(--text);
@@ -54,6 +57,11 @@
     }
     #controls input {
       margin: 0 5px;
+    }
+    #eliminationThreshold {
+      width: 20px;
+      max-width: 20px;
+      box-sizing: border-box;
     }
     button {
       margin: 5px;
@@ -74,10 +82,10 @@
     /* Update the table styles */
     table {
       border-collapse: collapse;
-      width: 600px;          /* Set a fixed width */
-      margin: 10px;     /* Center the table horizontally with auto margins */
+      width: 100%;
+      margin: 10px 0;
     }
-    .table-wrap { display: inline-block; max-height: 600px; overflow: auto; background: #fff; border: 1px solid var(--panel-border); border-radius: 6px; }
+    .table-wrap { display: block; width: 100%; max-height: 600px; overflow: auto; background: #fff; border: 1px solid var(--panel-border); border-radius: 6px; }
     table, th, td {
       border: 1px solid #ccc;
       padding: 5px;
@@ -91,8 +99,26 @@
 		margin-bottom: 20px;
 		align-items: stretch;
     }
+    .roster-history-row {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: stretch;
+    }
 	.roster-container {
+      flex: 0 0 auto;
 	}
+    #matchups-container { width: 100%; margin-left: 0; margin-right: auto; }
+    #roster-container {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      padding: 10px;
+      width: 100%;
+      max-width: none;
+    }
+    #roster-container h2 { margin-top: 0; }
 	.extra-info{
 	  flex-grow: 0;
 	  height: auto; 
@@ -116,23 +142,31 @@
 	  border: 1px solid var(--panel-border);
 	  border-radius: 8px;
 	  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-	  margin: 68px 1px 1px;
+	  margin: 12px 1px 1px;
 	}
 	.info-container h2 {
 	  margin-top: 0;
 	}
+    .team-points-note {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 6px 0 0;
+    }
     .pairing {
       display: flex;
       flex-direction: row;
       align-items: center;
+      width: 100%;
+      max-width: none;
       margin-bottom: 12px;
       padding: 8px 10px;
       background: #fff;
       border: 1px solid var(--panel-border);
       border-radius: 6px;
     }
-    .pairing-text { flex: 1; min-width: 520px; margin-right: 16px; }
-    .pairing-select { margin-left: auto; margin-right: 5px; width: 220px }
+    .pairing-text { flex: 1 1 0; min-width: 0; margin-right: 16px; }
+    .pairing-select { margin-left: auto; margin-right: 5px; width: clamp(140px, 24vw, 220px); flex: 0 0 clamp(140px, 24vw, 220px); }
+    .pairing-select select { width: 100%; }
     .unlock-button {
       margin-left: 5px;
     }
@@ -163,16 +197,109 @@
       margin-bottom: 10px;
       color: var(--muted);
     }
+    .history-container{
+      flex-grow: 0;
+      height: auto;
+      min-width: 300px;
+      background: var(--panel-bg);
+      padding: 10px;
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      margin: 0;
+      width: 100%;
+      max-width: none;
+    }
+    .history-container h2 { margin-top: 0; }
+    .history-bracket {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 4px 2px 6px;
+    }
+    .history-round {
+      width: var(--history-col-width);
+      background: #fff;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      padding: 6px;
+    }
+    .history-round-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .history-group-title {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin: 4px 0 4px;
+    }
+    .history-match {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .history-players {
+      width: var(--history-col-width);
+      background: #fafafa;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .history-player {
+      padding: 4px 8px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+    .history-player:last-child { border-bottom: 0; }
+    .history-player.winner { background: #e8f4e8; font-weight: 600; }
+    .history-player.loser { background: #fbeaea; }
+    .history-player.bye { color: var(--muted); font-style: italic; }
+    .history-empty {
+      color: var(--muted);
+      padding: 4px 2px;
+    }
 
     /* Status bar */
     #statusBar { margin: 8px 0 14px; color: var(--muted); }
     #statusBar strong { color: var(--text); }
 
     /* Responsive layout */
-    @media (max-width: 900px) {
-      .content-container { flex-direction: column; }
-      .pairing-text { width: auto; }
-      table { width: 100%; }
+    @media (max-width: 1339px) {
+      .roster-history-row { flex-direction: column; }
+      .title-section,
+      #controls,
+      .roster-history-row,
+      #matchups-container,
+      .info-container,
+      .extra-info {
+        width: 100%;
+        max-width: none;
+      }
+    }
+    @media (max-width: 400px) {
+      .pairing { flex-direction: row; flex-wrap: wrap; row-gap: 4px; column-gap: 8px; align-items: center; }
+      .pairing-text { flex: 1 1 100%; margin-right: 0; }
+      .pairing-select { width: auto; flex: 1 1 160px; margin: 0; }
+      .unlock-button { margin: 0; align-self: center; }
+      .pairing .unlock-button { margin: 0; }
+    }
+    @media (min-width: 1340px) {
+      .roster-history-row { flex-direction: row; align-items: stretch; }
+      #roster-container { display: flex; flex-direction: column; }
+      #roster-container,
+      .history-container { flex: 1 1 0; }
+      .table-wrap { flex: 1 1 auto; max-height: none; }
+      .title-section,
+      #controls,
+      .roster-history-row,
+      #matchups-container,
+      .info-container,
+      .extra-info {
+        max-width: var(--layout-max);
+      }
     }
   </style>
 </head>
@@ -210,28 +337,36 @@
   </div>
  
   <div class='content-container'> 
-    <div id="roster-container"> 
-      <div id="teamPointsDisplay"></div>
+    <div class="roster-history-row">
+      <div id="roster-container"> 
       <h2>Record</h2>
-      <div id="rosterFilters" style="margin:6px 10px;">
-        <label><input type="checkbox" id="filterActiveOnly"> Hide Eliminated</label>
-        <label style="margin-left:10px;">Team: <select id="filterTeam"><option value="">All</option></select></label>
+        <div id="rosterFilters" style="margin:6px 10px;">
+          <label><input type="checkbox" id="filterActiveOnly"> Hide Eliminated</label>
+          <label style="margin-left:10px;">Team: <select id="filterTeam"><option value="">All</option></select></label>
+        </div>
+        <div class="table-wrap">
+        <table id="competitorsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Team</th>
+              <th>Wins</th>
+              <th>Losses</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Competitor rows will be inserted here -->
+          </tbody>
+        </table>
+        </div>
       </div>
-      <div class="table-wrap">
-      <table id="competitorsTable">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Team</th>
-            <th>Wins</th>
-            <th>Losses</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Competitor rows will be inserted here -->
-        </tbody>
-      </table>
+
+      <div class="history-container">
+        <h2>Match History <button id="toggleHistory" class="link-button" aria-expanded="true" aria-controls="historyBody">Hide</button></h2>
+        <div id="historyBody">
+          <div id="historyBracket" class="history-bracket"></div>
+        </div>
       </div>
     </div>
 
@@ -244,21 +379,24 @@
       <button id="finalizeRound">Finalize: Generate Next Round</button>
     </div>
 
-    <div class="info-container" style="margin-top:16px;">
-      <h2> How to: <button id="toggleHowTo" class="link-button" aria-expanded="true" aria-controls="infoText">Hide</button></h2>
+    <div class="info-container" id="teamPointsContainer">
+      <h2>Team Points</h2>
+      <div id="teamPointsDisplay"></div>
+      <p class="team-points-note">Each participant contributes points to their team equal to their wins - losses. For example, if your record was 2-2, you contributed 0 points to your team.</p>
+    </div>
+
+    <div class='extra-info'>
+	  <h2>Information <button id="toggleExtraInfo" class="link-button" aria-expanded="true" aria-controls="extraInfoBody">Hide</button></h2>
+	  <div id="extraInfoBody">
+      <h3>How to:</h3>
       <div id="infoText">
         <ol>
           <li> Add competitors by entering their name and (optional) team, then press 'Add Competitor'.</li>
           <li> Set 'Losses to elimination' as desired, then press 'Begin Competition' to generate pairings.</li>
           <li> Select a winner for every non-BYE match. BYEs require no selection. 'Finalize' enables only when all required winners are selected; click it to record results and generate the next round.</li>
           <li> The tournament ends when one competitor remains below the loss threshold.</li>
-        </ol>
       </div>
-    </div>
-
-    <div class='extra-info'>
-	  <h2>Extra information <button id="toggleExtraInfo" class="link-button" aria-expanded="true" aria-controls="extraInfoBody">Hide</button></h2>
-	  <div id="extraInfoBody">
+	  <h3>Information</h3>
 	  <ol>
             <li> Records and current pairings persist locally in your browser. You can export/import the 'Record' as CSV at any time.</li>
             <li> Saved pairings are validated against the current roster and loss threshold; if they don't match, new pairings are computed automatically.</li>
@@ -284,6 +422,20 @@
 	  <h3> Match Up Logic</h3>
 	  <p>This software replaces classic fixed brackets with dynamic pairings by record. Undefeated competitors play undefeated; one-loss play one-loss, and so on. Within each loss group, competitors with fewer wins tend to be paired first so BYEs go to those who have fought the most. Team avoidance is prioritized but not guaranteed when constraints force it.</p>
 	  <p><strong>Single elimination</strong> (loss threshold = 1) naturally produces a finals pairing once only two undefeated entrants remain; any odd round assigns the BYE to the most battle-tested undefeated player to keep the bracket balanced. <strong>Double elimination</strong> (threshold = 2) keeps athletes alive until their second loss, tracks undefeated and one-loss brackets separately, and automatically promotes a lone undefeated into the one-loss pool if higher thresholds create a mismatch. When the field shrinks to two, the system schedules the decisive rematch; if a custom tiebreaker is toggled, a one-off playoff is generated without disturbing prior rounds.</p>
+	  <h3> Why not use a Geometric Bracket</h3>
+	  <p> Standard geometric brackets, like March Madness or mainstream sport use, rely on a season of round-robin like play to 
+		establish rankings/seeds. They then downselect to a number or participants/teams that is a power of 2, e.g. 2, 4, 8, 16, 
+		32, etc.... For example, in a double elimination geomtric bracket with 16 participants exactly, at the end of the 
+		bracket there will be 4 teams with a record of 0-2, 4 teams with a record of 1-2, and 4 with a record 2-2, the top for 
+		positions are the only ones that will have unique win-loss records. Thus, without previously established rankings, it is 
+		impossible to assign places in a 16 participant bracket after 1st through 4th. With less than 16 participants, often 
+		times 3rd and 4th place will have identical win-loss records and are only distinguished in a geometric bracket by a prior 
+		rank. Geometric brackets are also designed inherently to give the highest ranked team the easiest path to victory where 
+		in the ideal outcome they face the second ranked team in the finals. For smaller matches without a season of rankings, this 
+		geometric approach is inherently flawed. This software utilizes random match-ups with each bracket (winners or losers).
+		This randomization not only randomizes every participants path to victory, but it also becomes critical when a non-ideal
+		number of participants are present. Byes are assigned only when necessary (odd number of participants in a pool) and no
+		participant can get a bye twice (unless they are the last competitor in the winners pool). </p>
       <h2> Diagnostics </h2>
       <div id="diagnostics"> </div>
       </div>
