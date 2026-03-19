@@ -521,6 +521,24 @@ document.addEventListener("DOMContentLoaded", () => {
     finalizeRoundButton.disabled = (!competitionStarted) || (!hasAllSelections());
   }
 
+  function buildPairingTextHtml(pair) {
+    const a = getCompetitorByName(pair.comp1);
+    const b = pair.comp2 !== "BYE" ? getCompetitorByName(pair.comp2) : null;
+    const aRecord = a ? `(${a.wins}\u2013${a.losses})` : "";
+    const bRecord = b ? `(${b.wins}\u2013${b.losses})` : "";
+    const aTeam = a && a.team ? a.team : "";
+    const bTeam = b && b.team ? b.team : "";
+    const aBadge = aTeam ? `<span class="team-badge">${aTeam}</span>` : "";
+    const bBadge = bTeam ? `<span class="team-badge">${bTeam}</span>` : "";
+    const aState = pair.selected === pair.comp1 ? " winner" : (pair.selected === pair.comp2 ? " loser" : "");
+    const bState = pair.selected === pair.comp2 ? " winner" : (pair.selected === pair.comp1 ? " loser" : "");
+    const aName = `<span class="pairing-competitor${aState}"><strong>${pair.comp1}</strong> <span class="record">${aRecord}</span></span>`;
+    const bName = pair.comp2 !== "BYE"
+      ? `<span class="pairing-competitor${bState}"><strong>${pair.comp2}</strong> <span class="record">${bRecord}</span></span>`
+      : `(BYE)`;
+    return `${aBadge}${aName}` + (pair.comp2 !== "BYE" ? ` &nbsp;vs&nbsp; ${bBadge}${bName}` : ` &nbsp;vs&nbsp; ${bName}`);
+  }
+
   // pairCompetitors: filters eligible competitors, shuffles if first round,
   // groups them by loss count, and pairs within each group using a greedy algorithm.
   function pairCompetitors() {
@@ -667,16 +685,7 @@ document.addEventListener("DOMContentLoaded", () => {
 				// Left column: pairing text with badges and records.
 				const pairingText = document.createElement("div");
 				pairingText.className = "pairing-text";
-				const a = getCompetitorByName(pair.comp1);
-				const b = pair.comp2 !== "BYE" ? getCompetitorByName(pair.comp2) : null;
-				const aRecord = a ? `(${a.wins}\u2013${a.losses})` : "";
-				const bRecord = b ? `(${b.wins}\u2013${b.losses})` : "";
-				const aTeam = a && a.team ? a.team : "";
-				const bTeam = b && b.team ? b.team : "";
-				const aBadge = aTeam ? `<span class=\"team-badge\">${aTeam}</span>` : "";
-				const bBadge = bTeam ? `<span class=\"team-badge\">${bTeam}</span>` : "";
-				pairingText.innerHTML = `${aBadge}<strong>${pair.comp1}</strong> <span class=\"record\">${aRecord}</span>` +
-				  (pair.comp2 !== "BYE" ? ` &nbsp;vs&nbsp; ${bBadge}<strong>${pair.comp2}</strong> <span class=\"record\">${bRecord}</span>` : ` &nbsp;vs&nbsp; (BYE)`);
+				pairingText.innerHTML = buildPairingTextHtml(pair);
 				pairingDiv.appendChild(pairingText);
 				
 				// Center column: select dropdown.
@@ -710,6 +719,7 @@ document.addEventListener("DOMContentLoaded", () => {
             currentPairings[index].selected = this.value;
             // Apply immediate record update for this selection
             applySelectionForPair(index);
+            pairingText.innerHTML = buildPairingTextHtml(currentPairings[index]);
             unlockButton.disabled = false;
             updateFinalizeEnabled();
           }
@@ -740,6 +750,7 @@ document.addEventListener("DOMContentLoaded", () => {
           select.value = "";
           currentPairings[index].selected = "";
           currentPairings[index].applied = false;
+          pairingText.innerHTML = buildPairingTextHtml(currentPairings[index]);
           savePairings();
           unlockButton.disabled = true;
           updateFinalizeEnabled();
