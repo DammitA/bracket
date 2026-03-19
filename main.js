@@ -661,6 +661,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			// Do not generate pairings unless competition has started
 			if (!competitionStarted) {
 				resultsDiv.innerHTML = "";
+        updateStatusBar();
 				return;
 			}
 			resultsDiv.innerHTML = "";
@@ -763,6 +764,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			});
 			// Update finalize state after rendering/restoring selections
 			updateFinalizeEnabled();
+      updateStatusBar();
       renderMatchHistory();
 		}
 
