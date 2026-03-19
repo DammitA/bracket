@@ -678,8 +678,15 @@ document.addEventListener("DOMContentLoaded", () => {
 			
 			// Optionally, shuffle the order (if desired)
 			//shuffleArray(currentPairings);
-			
-			currentPairings.forEach((pair, index) => {
+
+      function appendSubheader(text) {
+        const subheader = document.createElement("div");
+        subheader.className = "matchups-subheader";
+        subheader.textContent = text;
+        resultsDiv.appendChild(subheader);
+      }
+
+      function renderPair(pair, index) {
 				const pairingDiv = document.createElement("div");
 				pairingDiv.className = "pairing";
 				pairingDiv.dataset.index = index;
@@ -762,7 +769,38 @@ document.addEventListener("DOMContentLoaded", () => {
 				pairingDiv.appendChild(unlockButton);
 				
 				resultsDiv.appendChild(pairingDiv);
-			});
+      }
+
+      const showBracketHeaders = !tiebreakerMode && eliminationThreshold > 1;
+      const winnerPairs = [];
+      const loserPairs = [];
+      const otherPairs = [];
+
+      currentPairings.forEach((pair, index) => {
+        if (!showBracketHeaders) {
+          otherPairs.push({ pair, index });
+          return;
+        }
+        if (pair.lossGroup === 0) {
+          winnerPairs.push({ pair, index });
+        } else if (pair.lossGroup === 1) {
+          loserPairs.push({ pair, index });
+        } else {
+          otherPairs.push({ pair, index });
+        }
+      });
+
+      if (showBracketHeaders && winnerPairs.length > 0) {
+        appendSubheader("Winners Bracket");
+        winnerPairs.forEach(({ pair, index }) => renderPair(pair, index));
+      }
+
+      if (showBracketHeaders && loserPairs.length > 0) {
+        appendSubheader("Losers Bracket");
+        loserPairs.forEach(({ pair, index }) => renderPair(pair, index));
+      }
+
+      otherPairs.forEach(({ pair, index }) => renderPair(pair, index));
 			// Update finalize state after rendering/restoring selections
 			updateFinalizeEnabled();
       updateStatusBar();
