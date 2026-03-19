@@ -25,6 +25,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const teamPointsContainer    = document.getElementById("teamPointsContainer");
   const statusBar              = document.getElementById("statusBar");
   const matchupsRound          = document.getElementById("matchupsRound");
+  const modifyMatchupsButton   = document.getElementById("modifyMatchups");
+  const matchupEditorModal     = document.getElementById("matchupEditorModal");
+  const matchupEditorPreview   = document.getElementById("matchupEditorPreview");
+  const matchupSwapA           = document.getElementById("matchupSwapA");
+  const matchupSwapB           = document.getElementById("matchupSwapB");
+  const applyMatchupSwapButton = document.getElementById("applyMatchupSwap");
+  const saveMatchupChangesBtn  = document.getElementById("saveMatchupChanges");
+  const cancelMatchupChangesBtn = document.getElementById("cancelMatchupChanges");
+  const matchupEditorError     = document.getElementById("matchupEditorError");
   const adminModeButton        = document.getElementById("adminMode"); // New Admin Mode button
   const toggleHowToBtn         = document.getElementById("toggleHowTo");
   const toggleExtraInfoBtn     = document.getElementById("toggleExtraInfo");
@@ -62,8 +71,9 @@ document.addEventListener("DOMContentLoaded", () => {
   if (localStorage.getItem("competitors")) {
     competitors = JSON.parse(localStorage.getItem("competitors"));
   }
-  
+
   let currentPairings = [];
+  let matchupEditorPairings = null;
   let competitionStarted = false;
 	if (localStorage.getItem("competitionStarted") == "true") {
 		competitionStarted = true;
@@ -169,6 +179,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateTeamPointsVisibility();
     populateTeamFilterOptions();
     updateStatusBar();
+    updateModifyMatchupsButtonState();
     updateTiebreakerButtonState();
   }
 
@@ -522,6 +533,157 @@ document.addEventListener("DOMContentLoaded", () => {
     finalizeRoundButton.disabled = (!competitionStarted) || (!hasAllSelections());
   }
 
+  function updateModifyMatchupsButtonState() {
+    if (!modifyMatchupsButton) return;
+    const hasOpenRound = competitionStarted && Array.isArray(currentPairings) && currentPairings.length > 0;
+    modifyMatchupsButton.disabled = adminMode || !hasOpenRound;
+  }
+
+  function clonePairingsForEditor(pairings) {
+    return (pairings || []).map(pair => ({
+      comp1: pair.comp1,
+      comp2: pair.comp2,
+      lossGroup: pair.lossGroup
+    }));
+  }
+
+  function getMatchupEditorSlots() {
+    const slots = [];
+    (matchupEditorPairings || []).forEach((pair, pairIndex) => {
+      slots.push({
+        id: `pair-${pairIndex}-comp1`,
+        pairIndex,
+        side: "comp1",
+        label: `${pair.comp1} (Match ${pairIndex + 1})`
+      });
+      slots.push({
+        id: `pair-${pairIndex}-comp2`,
+        pairIndex,
+        side: "comp2",
+        label: `${pair.comp2} (Match ${pairIndex + 1})`
+      });
+    });
+    return slots;
+  }
+
+  function readEditorSlot(slotId) {
+    if (!slotId) return null;
+    const match = /^pair-(\d+)-(comp[12])$/.exec(slotId);
+    if (!match) return null;
+    const pair = matchupEditorPairings && matchupEditorPairings[parseInt(match[1], 10)];
+    if (!pair) return null;
+    return pair[match[2]];
+  }
+
+  function writeEditorSlot(slotId, value) {
+    const match = /^pair-(\d+)-(comp[12])$/.exec(slotId);
+    if (!match || !matchupEditorPairings) return;
+    const pair = matchupEditorPairings[parseInt(match[1], 10)];
+    if (!pair) return;
+    pair[match[2]] = value;
+  }
+
+  function renderMatchupEditor() {
+    if (!matchupEditorPreview || !matchupSwapA || !matchupSwapB || !matchupEditorPairings) return;
+    matchupEditorPreview.innerHTML = "";
+    matchupEditorPairings.forEach((pair, index) => {
+      const row = document.createElement("div");
+      row.className = "matchup-editor-row";
+      const a = document.createElement("div");
+      a.className = "matchup-editor-slot";
+      a.textContent = pair.comp1;
+      const vs = document.createElement("div");
+      vs.className = "matchup-editor-vs";
+      vs.textContent = "vs";
+      const b = document.createElement("div");
+      b.className = "matchup-editor-slot";
+      b.textContent = pair.comp2;
+      row.appendChild(a);
+      row.appendChild(vs);
+      row.appendChild(b);
+      matchupEditorPreview.appendChild(row);
+    });
+
+    const slots = getMatchupEditorSlots();
+    const currentA = matchupSwapA.value;
+    const currentB = matchupSwapB.value;
+    matchupSwapA.innerHTML = "";
+    matchupSwapB.innerHTML = "";
+    slots.forEach(slot => {
+      const optionA = document.createElement("option");
+      optionA.value = slot.id;
+      optionA.textContent = slot.label;
+      matchupSwapA.appendChild(optionA);
+
+      const optionB = document.createElement("option");
+      optionB.value = slot.id;
+      optionB.textContent = slot.label;
+      matchupSwapB.appendChild(optionB);
+    });
+    matchupSwapA.value = slots.some(slot => slot.id === currentA) ? currentA : (slots[0] ? slots[0].id : "");
+    matchupSwapB.value = slots.some(slot => slot.id === currentB) ? currentB : (slots[1] ? slots[1].id : (slots[0] ? slots[0].id : ""));
+  }
+
+  function closeMatchupEditor() {
+    matchupEditorPairings = null;
+    if (matchupEditorModal) matchupEditorModal.hidden = true;
+    if (matchupEditorError) matchupEditorError.textContent = "";
+  }
+
+  function openMatchupEditor() {
+    if (!competitionStarted || !Array.isArray(currentPairings) || currentPairings.length === 0) {
+      alert("Start a round before modifying matchups.");
+      return;
+    }
+    if (currentPairings.some(pair => pair && pair.selected)) {
+      alert("Reset all current winner selections before modifying matchups.");
+      return;
+    }
+    if (!confirm("Are you sure you want to play god?")) {
+      return;
+    }
+    matchupEditorPairings = clonePairingsForEditor(currentPairings);
+    if (matchupEditorError) matchupEditorError.textContent = "";
+    renderMatchupEditor();
+    if (matchupEditorModal) matchupEditorModal.hidden = false;
+  }
+
+  function applyMatchupSwap() {
+    if (!matchupEditorPairings || !matchupSwapA || !matchupSwapB) return;
+    const slotA = matchupSwapA.value;
+    const slotB = matchupSwapB.value;
+    if (!slotA || !slotB) {
+      if (matchupEditorError) matchupEditorError.textContent = "Choose two slots to swap.";
+      return;
+    }
+    if (slotA === slotB) {
+      if (matchupEditorError) matchupEditorError.textContent = "Choose two different slots.";
+      return;
+    }
+    const valueA = readEditorSlot(slotA);
+    const valueB = readEditorSlot(slotB);
+    if (valueA === null || valueB === null) {
+      if (matchupEditorError) matchupEditorError.textContent = "Unable to read one of the selected slots.";
+      return;
+    }
+    writeEditorSlot(slotA, valueB);
+    writeEditorSlot(slotB, valueA);
+    if (matchupEditorError) matchupEditorError.textContent = "";
+    renderMatchupEditor();
+  }
+
+  function saveMatchupEditorChanges() {
+    if (!matchupEditorPairings) return;
+    currentPairings = matchupEditorPairings.map(pair => ({
+      ...pair,
+      selected: "",
+      applied: false
+    }));
+    savePairings();
+    closeMatchupEditor();
+    displayPairings();
+  }
+
   function buildPairingTextHtml(pair) {
     const a = getCompetitorByName(pair.comp1);
     const b = pair.comp2 !== "BYE" ? getCompetitorByName(pair.comp2) : null;
@@ -663,6 +825,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			if (!competitionStarted) {
 				resultsDiv.innerHTML = "";
         updateStatusBar();
+        updateModifyMatchupsButtonState();
 				return;
 			}
 			resultsDiv.innerHTML = "";
@@ -804,6 +967,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			// Update finalize state after rendering/restoring selections
 			updateFinalizeEnabled();
       updateStatusBar();
+      updateModifyMatchupsButtonState();
       renderMatchHistory();
 		}
 
@@ -1453,6 +1617,30 @@ document.addEventListener("DOMContentLoaded", () => {
   finalizeRoundButton.addEventListener("click", finalizeRound);
   
   calcTeamPointsButton.addEventListener("click", calcTeamPoints);
+  if (modifyMatchupsButton) {
+    modifyMatchupsButton.addEventListener("click", openMatchupEditor);
+  }
+  if (applyMatchupSwapButton) {
+    applyMatchupSwapButton.addEventListener("click", applyMatchupSwap);
+  }
+  if (saveMatchupChangesBtn) {
+    saveMatchupChangesBtn.addEventListener("click", saveMatchupEditorChanges);
+  }
+  if (cancelMatchupChangesBtn) {
+    cancelMatchupChangesBtn.addEventListener("click", closeMatchupEditor);
+  }
+  if (matchupEditorModal) {
+    matchupEditorModal.addEventListener("click", (event) => {
+      if (event.target === matchupEditorModal) {
+        closeMatchupEditor();
+      }
+    });
+  }
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && matchupEditorModal && !matchupEditorModal.hidden) {
+      closeMatchupEditor();
+    }
+  });
 
   // How To toggle behavior
   const howToCollapsedStored = localStorage.getItem('howToCollapsed');
