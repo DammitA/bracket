@@ -219,6 +219,22 @@
       max-width: none;
     }
     .history-container h2 { margin-top: 0; }
+    .matchups-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: flex-start;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .matchups-heading h2 {
+      margin: 0;
+    }
+    .matchups-round {
+      color: inherit;
+      font-size: inherit;
+      font-weight: inherit;
+    }
     .history-bracket {
       display: flex;
       gap: 10px;
@@ -382,7 +398,10 @@
       <div>
         <button id="beginCompetition">Begin Competition</button>
       </div>
-      <h2>Match Ups</h2>
+      <div class="matchups-heading">
+        <h2>Match Ups</h2>
+        <div id="matchupsRound" class="matchups-round" aria-live="polite"></div>
+      </div>
       <div id="results"><!-- Pairings --></div>
       <button id="finalizeRound">Finalize: Generate Next Round</button>
     </div>

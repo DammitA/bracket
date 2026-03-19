@@ -24,6 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const teamPointsDisplay      = document.getElementById("teamPointsDisplay");
   const teamPointsContainer    = document.getElementById("teamPointsContainer");
   const statusBar              = document.getElementById("statusBar");
+  const matchupsRound          = document.getElementById("matchupsRound");
   const adminModeButton        = document.getElementById("adminMode"); // New Admin Mode button
   const toggleHowToBtn         = document.getElementById("toggleHowTo");
   const toggleExtraInfoBtn     = document.getElementById("toggleExtraInfo");
@@ -1091,15 +1092,22 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
 
-	function getCompetitorByName(name) {
+  function getCompetitorByName(name) {
 		return competitors.find(c => c.name === name);
 	}
 
+  function getRoundText() {
+    return competitionFinished ? 'Finished' : (tiebreakerMode ? 'Tiebreaker: 2nd–3rd' : (competitionStarted ? `Round ${roundNumber}` : `Not started`));
+  }
+
   function updateStatusBar() {
     const active = competitors.filter(c => c.losses < eliminationThreshold).length;
-    const roundText = competitionFinished ? 'Finished' : (tiebreakerMode ? 'Tiebreaker: 2nd–3rd' : (competitionStarted ? `Round ${roundNumber}` : `Not started`));
+    const roundText = getRoundText();
     if (statusBar) {
       statusBar.innerHTML = `<strong>${roundText}</strong> · Active players: ${active}`;
+    }
+    if (matchupsRound) {
+      matchupsRound.textContent = roundText;
     }
     if (finalizeRoundButton) {
       if (!competitionStarted) {
