@@ -47,7 +47,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const resultsDiv             = document.getElementById("results");
 
   const eliminationThresholdInput = document.getElementById("eliminationThreshold");
-  let eliminationThreshold = parseInt(eliminationThresholdInput.value, 10) || 2;
+  let eliminationThreshold = parseInt(localStorage.getItem("eliminationThreshold") || eliminationThresholdInput.value, 10) || 2;
+  eliminationThresholdInput.value = eliminationThreshold;
 
   eliminationThresholdInput.addEventListener("change",() => {
 	let value = parseInt(eliminationThresholdInput.value, 10);
@@ -59,6 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	}
 	eliminationThreshold = value;
 	eliminationThresholdInput.value = value;
+	localStorage.setItem("eliminationThreshold", String(value));
 	// Optionally, recalc pairings if a round is in progress.
 	if (competitionStarted) {
 		displayPairings();
@@ -277,6 +279,9 @@ document.addEventListener("DOMContentLoaded", () => {
       localStorage.setItem("competitionStarted", "false");
       competitionFinished = false;
       localStorage.setItem("competitionFinished", "false");
+      localStorage.removeItem("eliminationThreshold");
+      eliminationThreshold = 2;
+      eliminationThresholdInput.value = eliminationThreshold;
       beginCompetitionButton.disabled = true;
       finalizeRoundButton.disabled = true;
 			clearPairings();
@@ -523,6 +528,80 @@ document.addEventListener("DOMContentLoaded", () => {
     return pairs;
   }
 
+  function pairMultiLossGroups(groups) {
+    let pairs = [];
+    let residuals = [];
+
+    Object.keys(groups).sort((a, b) => a - b).forEach(loss => {
+      const group = groups[loss];
+      const lossNumber = parseInt(loss, 10);
+      if (!group || group.length === 0) return;
+
+      let working = group.slice();
+      if (working.length % 2 !== 0) {
+        const sortedGroup = working.slice().sort((a, b) => {
+          if (a.wins !== b.wins) return a.wins - b.wins;
+          return b.losses - a.losses;
+        });
+        const residual = sortedGroup[sortedGroup.length - 1];
+        residuals.push({ comp: residual, loss: lossNumber });
+        working = working.filter(c => c.name !== residual.name);
+      }
+
+      if (working.length > 1) {
+        const groupPairs = greedyPairGroup(working).map(p => {
+          return { ...p, lossGroup: lossNumber };
+        });
+        pairs = pairs.concat(groupPairs);
+      }
+    });
+
+    residuals.sort((a, b) => {
+      if (b.loss !== a.loss) return b.loss - a.loss;
+      if (b.comp.wins !== a.comp.wins) return b.comp.wins - a.comp.wins;
+      return a.comp.name.localeCompare(b.comp.name);
+    });
+
+    let i = 0;
+    while (i < residuals.length - 1) {
+      const a = residuals[i];
+      const b = residuals[i + 1];
+      if (Math.abs(a.loss - b.loss) === 1) {
+        pairs.push({
+          comp1: a.comp.name,
+          comp2: b.comp.name,
+          lossGroup: Math.min(a.loss, b.loss),
+          mixedLossGroup: true
+        });
+        residuals.splice(i, 2);
+        i = 0;
+      } else {
+        i++;
+      }
+    }
+
+    if (!pairs.some(pair => pair.comp2 !== "BYE") && residuals.length > 1) {
+      const a = residuals.shift();
+      const b = residuals.shift();
+      pairs.push({
+        comp1: a.comp.name,
+        comp2: b.comp.name,
+        lossGroup: Math.min(a.loss, b.loss),
+        mixedLossGroup: true
+      });
+    }
+
+    residuals.forEach(item => {
+      pairs.push({
+        comp1: item.comp.name,
+        comp2: "BYE",
+        lossGroup: item.loss
+      });
+    });
+
+    return pairs;
+  }
+
   // Require that all non-BYE matches have a selected winner
   function hasAllSelections() {
     if (!Array.isArray(currentPairings) || currentPairings.length === 0) return false;
@@ -728,15 +807,10 @@ document.addEventListener("DOMContentLoaded", () => {
       groups[comp.losses].push(comp);
     });
 
-	// TESTING HERE
-	if (eliminationThreshold > 2 && groups[0] && groups[0].length === 1) {
-      const lone = groups[0].shift();
-      groups[1] = groups[1] || [];
-      groups[1].push(lone);
+	if (eliminationThreshold > 2) {
+      return pairMultiLossGroups(groups);
     }
 
-    let zeroLoss = groups[0] || [];
-    let oneLoss = groups[1] || [];
     let pairs = [];
     Object.keys(groups).sort((a, b) => a - b).forEach(loss => {
       let group = groups[loss];

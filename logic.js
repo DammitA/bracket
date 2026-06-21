@@ -110,6 +110,64 @@
     return pairs;
   }
 
+  function pairMultiLossGroups(groups, opts) {
+    const rng = opts && opts.rng;
+    let pairs = [];
+    let residuals = [];
+
+    Object.keys(groups).sort((a, b) => a - b).forEach(loss => {
+      const group = groups[loss];
+      const lossNumber = parseInt(loss, 10);
+      if (!group || group.length === 0) return;
+
+      let working = group.slice();
+      if (working.length % 2 !== 0) {
+        const sortedGroup = working.slice().sort((a, b) => {
+          if (a.wins !== b.wins) return a.wins - b.wins;
+          return b.losses - a.losses;
+        });
+        const residual = sortedGroup[sortedGroup.length - 1];
+        residuals.push({ comp: residual, loss: lossNumber });
+        working = working.filter(c => c.name !== residual.name);
+      }
+
+      if (working.length > 1) {
+        pairs = pairs.concat(greedyPairGroup(working, { rng }));
+      }
+    });
+
+    residuals.sort((a, b) => {
+      if (b.loss !== a.loss) return b.loss - a.loss;
+      if (b.comp.wins !== a.comp.wins) return b.comp.wins - a.comp.wins;
+      return a.comp.name.localeCompare(b.comp.name);
+    });
+
+    let i = 0;
+    while (i < residuals.length - 1) {
+      const a = residuals[i];
+      const b = residuals[i + 1];
+      if (Math.abs(a.loss - b.loss) === 1) {
+        pairs.push({ comp1: a.comp.name, comp2: b.comp.name });
+        residuals.splice(i, 2);
+        i = 0;
+      } else {
+        i++;
+      }
+    }
+
+    if (!pairs.some(pair => pair.comp2 !== "BYE") && residuals.length > 1) {
+      const a = residuals.shift();
+      const b = residuals.shift();
+      pairs.push({ comp1: a.comp.name, comp2: b.comp.name });
+    }
+
+    residuals.forEach(item => {
+      pairs.push({ comp1: item.comp.name, comp2: "BYE" });
+    });
+
+    return pairs;
+  }
+
   function pairCompetitors(competitors, eliminationThreshold, opts) {
     const rng = opts && opts.rng;
     let validCompetitors = competitors.filter(c => c.losses < eliminationThreshold);
@@ -131,10 +189,8 @@
       groups[comp.losses].push(comp);
     });
 
-    if (eliminationThreshold > 2 && groups[0] && groups[0].length === 1) {
-      const lone = groups[0].shift();
-      groups[1] = groups[1] || [];
-      groups[1].push(lone);
+    if (eliminationThreshold > 2) {
+      return pairMultiLossGroups(groups, { rng });
     }
 
     let pairs = [];
@@ -149,6 +205,7 @@
   return {
     shuffleArray,
     greedyPairGroup,
+    pairMultiLossGroups,
     pairCompetitors
   };
 });
