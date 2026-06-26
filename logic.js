@@ -1,3 +1,7 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Alexander Doner
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 // Pure pairing logic extracted for testing and optional reuse.
 // Exposes a global `Pairing` object in browsers and CommonJS export in Node.
 (function (root, factory) {

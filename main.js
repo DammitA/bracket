@@ -1,4 +1,8 @@
-// Alex Doner
+/*
+ * SPDX-FileCopyrightText: 2026 Alexander Doner
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+// Alexander Doner
 // Feb 18 2025
 // This now uses the 'greedySort' method. 
 //   Works for many many competitors and does a good job preventing teammate matchups. 
